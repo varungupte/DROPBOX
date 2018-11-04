@@ -1,18 +1,28 @@
 from flask import Flask, render_template, flash, redirect, url_for, session, request, logging
 #from data import Articles
 from flask_mysqldb import MySQL
-from wtforms import Form, StringField, TextAreaField, PasswordField, validators
+from wtforms import Form, StringField, TextAreaField, PasswordField, validators, FileField
 from passlib.hash import sha256_crypt
 from functools import wraps
+# from flask_wtf.file import FileField
+from werkzeug import secure_filename
+from werkzeug.utils import secure_filename
+import os
 
 app = Flask(__name__)
 
 # Config MySQL
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = '123456'
-app.config['MYSQL_DB'] = 'myflaskapp'
+app.config['MYSQL_DATABASE_HOST'] ='localhost'
+app.config['MYSQL_DATABASE_USER'] ='root'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'root'
+app.config['MYSQL_DATABASE_DB'] = 'dropbox'
+app.config['MYSQL_HOST'] ='localhost'
+app.config['MYSQL_USER'] ='root'
+app.config['MYSQL_PASSWORD'] = 'root'
+app.config['MYSQL_DB'] = 'dropbox'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+UPLOAD_FOLDER = '/home/vagupta/Documents/linux/DROPBOX/DROPBOX/uploads/'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # init MYSQL
 mysql = MySQL(app)
 
@@ -85,7 +95,8 @@ def register():
         email = form.email.data
         username = form.username.data
         password = sha256_crypt.encrypt(str(form.password.data))
-
+        dirName=app.config['UPLOAD_FOLDER']+username
+        os.mkdir(dirName)
         # Create cursor
         cur = mysql.connection.cursor()
 
@@ -128,6 +139,7 @@ def login():
                 # Passed
                 session['logged_in'] = True
                 session['username'] = username
+                session['path']=app.config['UPLOAD_FOLDER']+session['username']
 
                 flash('You are now logged in', 'success')
                 return redirect(url_for('dashboard'))
@@ -183,78 +195,113 @@ def dashboard():
     # Close connection
     cur.close()
 
-# Article Form Class
-class ArticleForm(Form):
-    title = StringField('Title', [validators.Length(min=1, max=200)])
-    body = TextAreaField('Body', [validators.Length(min=30)])
+# # Article Form Class
+# class ArticleForm(Form):
+#     title = StringField('Title', [validators.Length(min=1, max=200)])
+#     body = TextAreaField('Body', [validators.Length(min=30)])
 
-# Add Article
-@app.route('/add_article', methods=['GET', 'POST'])
+# # Add Article
+# @app.route('/add_article', methods=['GET', 'POST'])
+# @is_logged_in
+# def add_article():
+#     form = ArticleForm(request.form)
+#     if request.method == 'POST' and form.validate():
+#         title = form.title.data
+#         body = form.body.data
+
+#         # Create Cursor
+#         cur = mysql.connection.cursor()
+
+#         # Execute
+#         cur.execute("INSERT INTO articles(title, body, author) VALUES(%s, %s, %s)",(title, body, session['username']))
+
+#         # Commit to DB
+#         mysql.connection.commit()
+
+#         #Close connection
+#         cur.close()
+
+#         flash('Article Created', 'success')
+
+#         return redirect(url_for('dashboard'))
+
+#     return render_template('add_article.html', form=form)
+
+# Uploading file Form Class
+class UploadForm(Form):
+    file = FileField('file')
+
+# uploading 
+@app.route('/upload', methods=['GET', 'POST'])
 @is_logged_in
-def add_article():
-    form = ArticleForm(request.form)
+def upload():
+    form = UploadForm(request.form)
     if request.method == 'POST' and form.validate():
-        title = form.title.data
-        body = form.body.data
-
+        file = request.files['file']
+        if file:
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(session['path'],filename))
+            path=os.path.join(session['path'],filename)
+        # return redirect(url_for('upload'))
+       
         # Create Cursor
-        cur = mysql.connection.cursor()
+            cur = mysql.connection.cursor()
 
-        # Execute
-        cur.execute("INSERT INTO articles(title, body, author) VALUES(%s, %s, %s)",(title, body, session['username']))
+            # Execute
+            cur.execute("INSERT INTO articles(title, body, author) VALUES(%s, %s, %s)",(filename,path,session['username']))
 
-        # Commit to DB
-        mysql.connection.commit()
+            # Commit to DB
+            mysql.connection.commit()
 
-        #Close connection
-        cur.close()
+            #Close connection
+            cur.close()
 
-        flash('Article Created', 'success')
+            flash('File Uploaded', 'success')
 
-        return redirect(url_for('dashboard'))
+            return redirect(url_for('dashboard'))
 
-    return render_template('add_article.html', form=form)
+    return render_template('upload.html', form=form)
 
 
-# Edit Article
-@app.route('/edit_article/<string:id>', methods=['GET', 'POST'])
-@is_logged_in
-def edit_article(id):
-    # Create cursor
-    cur = mysql.connection.cursor()
+# # Edit Article
+# @app.route('/edit_article/<string:id>', methods=['GET', 'POST'])
+# @is_logged_in
+# def edit_article(id):
+#     # Create cursor
+#     cur = mysql.connection.cursor()
 
-    # Get article by id
-    result = cur.execute("SELECT * FROM articles WHERE id = %s", [id])
+#     # Get article by id
+#     result = cur.execute("SELECT * FROM articles WHERE id = %s", [id])
 
-    article = cur.fetchone()
-    cur.close()
-    # Get form
-    form = ArticleForm(request.form)
+#     article = cur.fetchone()
+#     cur.close()
+#     # Get form
+#     form = UploadForm(request.form)
 
-    # Populate article form fields
-    form.title.data = article['title']
-    form.body.data = article['body']
+#     # Populate article form fields
+#     # form.title.data = article['title']
+#     form.body.data = article['body']
 
-    if request.method == 'POST' and form.validate():
-        title = request.form['title']
-        body = request.form['body']
+#     if request.method == 'POST' and form.validate():
+#         title = request.form['title']
+#         body = request.form['body']
 
-        # Create Cursor
-        cur = mysql.connection.cursor()
-        app.logger.info(title)
-        # Execute
-        cur.execute ("UPDATE articles SET title=%s, body=%s WHERE id=%s",(title, body, id))
-        # Commit to DB
-        mysql.connection.commit()
+#         # Create Cursor
+#         cur = mysql.connection.cursor()
+#         app.logger.info(title)
+#         # Execute
+#         cur.execute ("UPDATE articles SET title=%s, body=%s WHERE id=%s",(title, body, id))
+#         # Commit to DB
+#         mysql.connection.commit()
 
-        #Close connection
-        cur.close()
+#         #Close connection
+#         cur.close()
 
-        flash('Article Updated', 'success')
+#         flash('Article Updated', 'success')
 
-        return redirect(url_for('dashboard'))
+#         return redirect(url_for('dashboard'))
 
-    return render_template('edit_article.html', form=form)
+#     return render_template('edit_article.html', form=form)
 
 # Delete Article
 @app.route('/delete_article/<string:id>', methods=['POST'])
@@ -264,6 +311,11 @@ def delete_article(id):
     cur = mysql.connection.cursor()
 
     # Execute
+    
+    result = cur.execute("SELECT * FROM articles WHERE id = %s and author = %s",(id,[session['username']]))
+    articles = cur.fetchone()
+    os.remove(os.path.join(session['path'],articles['title']))
+
     cur.execute("DELETE FROM articles WHERE id = %s", [id])
 
     # Commit to DB
@@ -272,7 +324,7 @@ def delete_article(id):
     #Close connection
     cur.close()
 
-    flash('Article Deleted', 'success')
+    flash('File Deleted', 'success')
 
     return redirect(url_for('dashboard'))
 

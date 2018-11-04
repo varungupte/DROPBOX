@@ -1,0 +1,45 @@
+<link href='demo.css' rel='stylesheet' type='text/css'>
+
+<script type="text/javascript"> 
+document.write("<h2> What happens when you delete a inherited property?</h2>");
+
+let animal = {jumps: "not sure", walks: true, stomach:[], eats:function(food){this.stomach.push(food);}};
+let rabbit = {__proto__: animal,  jumps: "hop"};
+
+document.writeln("<h4> rabbit.jumps = "+ rabbit.jumps + " </h4>" );
+document.writeln("<h4> animal.jumps = "+ animal.jumps+ " </h4>" );
+
+
+delete rabbit.jumps;
+document.writeln("<h3> After deleting rabbit.jumps... </h3>" );
+document.writeln("<h4> rabbit.jumps = "+ rabbit.jumps + " </h4>" );
+document.writeln("<h4> animal.jumps = "+ animal.jumps+ " </h4>" );
+
+
+delete animal.jumps;
+rabbit.jumps = "cool";
+document.writeln("<h3> After deleting animal.jumps... </h3>" );
+document.writeln("<h4> rabbit.jumps = "+ rabbit.jumps + " </h4>" );
+document.writeln("<h4> animal.jumps = "+ animal.jumps+ " </h4>" );
+
+
+delete rabbit.walks;
+document.writeln("<h3> After &&&&&&&&&&& deleting rabbit.walks which is a inherited property, it actually does not go away. </h3>" );
+document.writeln("<h4> rabbit.walks = "+ rabbit.walks + " </h4>" );
+document.writeln("<h4> animal.walks = "+ animal.walks+ " </h4>" );
+
+
+rabbit.walks = false;
+document.writeln("<h3> After changing rabbit.walks which is a inherited property, it actually does not change parent's property. Instead a local copy is created in child. </h3>" );
+document.writeln("<h4> rabbit.walks = "+ rabbit.walks + " </h4>" );
+document.writeln("<h4> animal.walks = "+ animal.walks+ " </h4>" );
+
+let longEar={__proto__: rabbit};
+longEar.eats("carrot");
+document.writeln("<h3> After longEar who inherits from rabbit eats carrot..Is this the desired behaviour?</h3>");
+document.writeln("<h4> rabbit.stomach = "+ rabbit.stomach + " </h4>" );
+document.writeln("<h4> longEar.stomach = "+ longEar.stomach + " </h4>" );
+
+
+
+</script>
